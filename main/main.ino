@@ -1,21 +1,17 @@
 /*
  * Portable Solar Tracking System - Main
  * 
- * This program will contain the main control for the Photovoltaic (PV)
+ * This program will contain the main control for the two-axis Photovoltaic (PV)
  * tracking system. The Arduino will communicate with the stepper motor drives,
  * a 16-bit ADC, hall effect sensors, and any other peripheral devices deemed
  * necessary. 
  */
 
- #include <Stepper.h> //Stepper motor driver library provided by Arduino
+ #include <DRV8834.h>
  #include <Adafruit_ADS1115.h> //Custom ADC library for ADS1115 provided by Adafruit
 
-const int stepsPerRev = 200; //Both motors have 200 steps per revolution
+const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution
 //Degrees per step: 360/200 = 1.8
-
-//Instantiate both stepper motor objects
-Stepper stepperTheta(stepsPerRev, 2, 3, 4, 5); //Connect theta stepper to digital pins 2,3,4 and 5
-Stepper stepperPhi(stepsPerRev, 6, 7, 8, 9); //Connect phi stepper to digital pins 6,7,8 and 9
 
 /*
  * Analog to Digital converter module uses I2C interface.
@@ -39,10 +35,19 @@ int left=3;
 //Digital output values from ADS module
 int16_t topSensor, rightSensor, bottomSensor, leftSensor; 
 
+int dirPin1 = 2; //Arduino pin, direction for first driver
+int stepPin1 = 3; //Arduino pin, step pulse output to first driver
+int dirPin2 = 4; //Arduino pin, direction for second driver
+int stepPin2 = 5; //Arduino pin, step pulse output to second driver
+
+//Instantiate both stepper motor driver objects
+DRV8834 stepperTheta(STEPS_PER_REV, dirPin1, stepPin1); //Driver that controls rotation motor
+DRV8834 stepperPhi(STEPS_PER_REV, dirPin2, stepPin2); //Driver that controls tilt motor
+
 void setup() {
-  //Set stepper motor speeds at 60 rpm
-  stepperTheta.setSpeed(60);
-  stepperPhi.setSpeed(60);
+  //Set stepper motor speeds at 1 rpm
+  stepperTheta.setRPM(1);
+  stepperPhi.setRPM(1);
 
   //Intialize ADS1115
   adc.begin();
