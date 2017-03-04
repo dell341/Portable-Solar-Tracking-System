@@ -7,8 +7,8 @@
  * necessary. 
  */
 
- #include <DRV8834.h>
- #include <Adafruit_ADS1115.h> //Custom ADC library for ADS1115 provided by Adafruit
+#include <DRV8834.h>
+#include <Adafruit_ADS1015.h> //Custom ADC library for ADS1115 provided by Adafruit
 
 const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution
 //Degrees per step: 360/200 = 1.8
