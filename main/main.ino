@@ -38,8 +38,10 @@ const int STEP_THETA = 5; //Amount of steps for each theta movement
 
 int dirPin1 = 2; //Arduino pin, direction for first driver
 int stepPin1 = 3; //Arduino pin, step pulse output to first driver
-int dirPin2 = 4; //Arduino pin, direction for second driver
-int stepPin2 = 5; //Arduino pin, step pulse output to second driver
+int sleepPin1 = 4; //Arduino pin, sleep/enable pin for the first driver
+int dirPin2 = 5; //Arduino pin, direction for second driver
+int stepPin2 = 6; //Arduino pin, step pulse output to second driver
+int sleepPin2 = 7; //Arduino pin, sleep/enable pin for the second driver
 
 int upperLimitPin = 10; //Arduino pin, hall sensor - solar panel phi position upper limit
 int homePin = 11; //Arduino pin, hall sensor - solar panel home position 
@@ -68,8 +70,8 @@ int left=3;
 int16_t topSensor, rightSensor, bottomSensor, leftSensor; 
 
 //Instantiate both stepper motor driver objects
-DRV8834 stepperTheta(STEPS_PER_REV, dirPin1, stepPin1); //Driver that controls rotation motor
-DRV8834 stepperPhi(STEPS_PER_REV, dirPin2, stepPin2); //Driver that controls tilt motor
+DRV8834 stepperTheta(STEPS_PER_REV, dirPin1, stepPin1, sleepPin1); //Driver that controls rotation motor
+DRV8834 stepperPhi(STEPS_PER_REV, dirPin2, stepPin2, sleepPin2); //Driver that controls tilt motor
 
 //Keeps track of motor position based on steps taken
 int phiPosition = 0;
@@ -77,8 +79,8 @@ int thetaPosition = 0;
 
 void setup() {
   //Set stepper motor speeds
-  stepperTheta.setRPM(75);
-  stepperPhi.setRPM(1);
+  stepperTheta.setRPM(25);
+  stepperPhi.setRPM(25);
 
   //Set intial read value of sensors to 0
   topSensor = 0;
@@ -125,26 +127,12 @@ void loop() {
     readSensors();
   
     Serial.print("Top: "); Serial.println(topSensor);
-    Serial.print("Bottom: "); Serial.println(bottomSensor);
-    Serial.print("Left: "); Serial.println(leftSensor);
-    Serial.print("Right: "); Serial.println(rightSensor);
-  
-    if(isAboveThreshold()) {
-      readSensors();
-  
-    /*
-     * Determines whether the solar panel needs to tilt up/down or rotate clockwise/counterclockwise.
-     * The theta motor rotates the panel position, while the phi motor tilts the panel position
-     */
-      if(isAboveDiff(rightSensor,leftSensor))
-        stepThetaDown();
-      else if(isAboveDiff(leftSensor,rightSensor))
-        stepThetaUp();
-      else if(isAboveDiff(topSensor,bottomSensor) && canMovePhi())
-        stepPhiDown();
-      else if(isAboveDiff(bottomSensor,topSensor) && canMovePhi())
-        stepPhiUp(); 
-    }
+    //Serial.print("Bottom: "); Serial.println(bottomSensor);
+    //Serial.print("Left: "); Serial.println(leftSensor);
+    //Serial.print("Right: "); Serial.println(rightSensor);
+    Serial.println();
+   
+    delay(2000);
   }
 }
 
@@ -301,9 +289,10 @@ void goToHome() {
  */
 void movePhiBy(int amountToMove) {
   //For now let's set limits to 100 steps, until stepping mode can be determined
-  if(abs(amountToMove) > 100)
-    return;
+  //if(abs(amountToMove) > 100)
+    //return;
 
+  Serial.println("Moving phi");
   stepperPhi.move(amountToMove);
   phiPosition = phiPosition + amountToMove; //Update phi position
 }
@@ -313,6 +302,7 @@ void movePhiBy(int amountToMove) {
  * returns: void
  */
  void stepPhiUp() {
+  Serial.println("Stepping phi up");
     stepperPhi.move(STEP_PHI);
  }
 
@@ -320,6 +310,7 @@ void movePhiBy(int amountToMove) {
   * Comand the phi driver to step down by predefined amount
   */
   void stepPhiDown() {
+    Serial.println("Stepping phi down");
       stepperPhi.move(-STEP_PHI);
   }
 
@@ -341,6 +332,7 @@ void moveThetaBy(int amountToMove) {
   if(abs(amountToMove) > 200)
     return;
 
+  Serial.println("Moving theta");
   stepperTheta.move(amountToMove);
   thetaPosition = thetaPosition + amountToMove; //Update theta position
 }
@@ -350,6 +342,7 @@ void moveThetaBy(int amountToMove) {
  * returns: void
  */
  void stepThetaUp() {
+    Serial.println("Stepping theta up");
     stepperTheta.move(STEP_THETA);
  }
 
@@ -357,5 +350,6 @@ void moveThetaBy(int amountToMove) {
   * Comand the Theta driver to step down by predefined amount
   */
   void stepThetaDown() {
+    Serial.println("Stepping theta down");
       stepperTheta.move(-STEP_THETA);
   }
