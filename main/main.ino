@@ -27,11 +27,13 @@ String params; //Parameters portion of instruction
 
 const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution. Degrees per step = 1.8
 //Voltage threshold determines whether the summation of all sensors is enough to start tracking. Basically Day/Night sensor
+/*
+ * TODO: Find real value for voltage threshold
+ * TODO: Find real value for max phi. Determine if it will be in steps or degrees.
+ * TODO: Find real value for voltage difference
+ */
 const int VOLTAGE_THRESHOLD = 0.5; 
 const int VOLTAGE_DIFF = 0.2; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
-/*
- * TODO: Find needed value for max phi. Determine if it will be in steps or degrees.
- */
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
 const int STEP_PHI = 5; //Amount of steps for each phi movement
 const int STEP_THETA = 5; //Amount of steps for each theta movement
@@ -100,8 +102,6 @@ void setup() {
 }
 
 void loop() {
-
-stepperTheta.wake();
   if(DEBUG) {
     if(Serial.available()) {
       //Separates instructions by end-statement characters
@@ -117,6 +117,12 @@ stepperTheta.wake();
         break;
         case 's': //Steps motor up or down
           commandStep(params);
+        break;
+        case 'w': //Wakes motor drivers
+          wakeMode();
+        break;
+        case 'z': //Puts motor drivers to sleep
+          sleepMode();
         break;
         default:
           Serial.println("Invalid instruction received");
@@ -354,3 +360,22 @@ void moveThetaBy(int amountToMove) {
     Serial.println("Stepping theta down");
       stepperTheta.move(-STEP_THETA);
   }
+
+  /*
+   * Power down the motor drivers to limit power consumption
+   * Disables control to both motors
+   */
+  void sleepMode() {
+    stepperTheta.sleep();
+    stepperPhi.sleep();
+  }
+
+  /*
+   * Power up the motor drivers, back to ready state
+   * Re-enables control back to both motors
+   */
+  void wakeMode() {
+    stepperTheta.wake();
+    stepperPhi.wake();
+  }
+
