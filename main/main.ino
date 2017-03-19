@@ -59,12 +59,12 @@ Adafruit_ADS1115 adc;
 
 /*
  * Analog channels for solar sensors light intensity
- * Top - 0, Right - 1, Bottom - 2, Left - 3
+ * Top - 0, Bottom - 1, Left - 2, Right - 3
  */
 int top=0;
-int right=1;
-int bottom=2;
-int left=3;
+int bottom=1;
+int left=2;
+int right=3;
 
 //Digital output values from ADS module
 int16_t topSensor, rightSensor, bottomSensor, leftSensor; 
@@ -101,6 +101,7 @@ void setup() {
 
 void loop() {
 
+stepperTheta.wake();
   if(DEBUG) {
     if(Serial.available()) {
       //Separates instructions by end-statement characters
@@ -127,9 +128,9 @@ void loop() {
     readSensors();
   
     Serial.print("Top: "); Serial.println(topSensor);
-    //Serial.print("Bottom: "); Serial.println(bottomSensor);
-    //Serial.print("Left: "); Serial.println(leftSensor);
-    //Serial.print("Right: "); Serial.println(rightSensor);
+    Serial.print("Bottom: "); Serial.println(bottomSensor);
+    Serial.print("Left: "); Serial.println(leftSensor);
+    Serial.print("Right: "); Serial.println(rightSensor);
     Serial.println();
    
     delay(2000);

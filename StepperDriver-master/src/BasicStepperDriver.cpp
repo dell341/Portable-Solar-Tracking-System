@@ -19,8 +19,14 @@ BasicStepperDriver::BasicStepperDriver(int steps, int dir_pin, int step_pin)
     init();
 }
 
-BasicStepperDriver::BasicStepperDriver(int steps, int dir_pin, int step_pin, int enable_pin)
-:motor_steps(steps), dir_pin(dir_pin), step_pin(step_pin), enable_pin(enable_pin)
+BasicStepperDriver::BasicStepperDriver(int steps, int dir_pin, int step_pin, int sleep_pin)
+:motor_steps(steps), dir_pin(dir_pin), step_pin(step_pin), sleep_pin(sleep_pin)
+{
+    init();
+}
+
+BasicStepperDriver::BasicStepperDriver(int steps, int dir_pin, int step_pin, int sleep_pin, int enable_pin)
+:motor_steps(steps), dir_pin(dir_pin), step_pin(step_pin), sleep_pin(sleep_pin), enable_pin(enable_pin)
 {
     init();
 }
@@ -37,10 +43,16 @@ void BasicStepperDriver::init(void){
         digitalWrite(enable_pin, HIGH); // disable
     }
 
+    if IS_CONNECTED(sleep_pin) {
+        pinMode(sleep_pin, OUTPUT);
+        digitalWrite(sleep_pin, LOW); // disable
+    }
+
     setMicrostep(1);
     setRPM(60); // 60 rpm is a reasonable default
 
     enable();
+    wake();
 }
 
 
@@ -118,6 +130,21 @@ void BasicStepperDriver::rotate(long deg){
 void BasicStepperDriver::rotate(double deg){
     long steps = deg * motor_steps * microsteps / 360;
     move(steps);
+}
+
+/*
+ * Puts the motor into a low-power sleep mode
+ */
+void BasicStepperDriver::sleep(void){
+    if IS_CONNECTED(sleep_pin){
+        digitalWrite(sleep_pin, LOW);
+    }
+}
+
+void BasicStepperDriver::wake(void){
+    if IS_CONNECTED(sleep_pin){
+        digitalWrite(sleep_pin, HIGH);
+    }
 }
 
 /*

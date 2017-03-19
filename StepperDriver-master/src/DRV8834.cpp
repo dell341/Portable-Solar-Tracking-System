@@ -17,14 +17,18 @@ DRV8834::DRV8834(int steps, int dir_pin, int step_pin)
 :BasicStepperDriver(steps, dir_pin, step_pin)
 {}
 
-DRV8834::DRV8834(int steps, int dir_pin, int step_pin, int enable_pin)
-:BasicStepperDriver(steps, dir_pin, step_pin, enable_pin)
+DRV8834::DRV8834(int steps, int dir_pin, int step_pin, int sleep_pin)
+:BasicStepperDriver(steps, dir_pin, step_pin, sleep_pin)
+{}
+
+DRV8834::DRV8834(int steps, int dir_pin, int step_pin, int sleep_pin, int enable_pin)
+:BasicStepperDriver(steps, dir_pin, step_pin, sleep_pin, enable_pin)
 {}
 
 /*
  * Fully wired. All the necessary control pins for DRV8834 are connected.
  */
-DRV8834::DRV8834(int steps, int dir_pin, int step_pin, int m0_pin, int m1_pin)
+DRV8834::DRV8834(int steps, int dir_pin, int step_pin, int m0_pin, int m1_pin, bool placeholder)
 :BasicStepperDriver(steps, dir_pin, step_pin), m0_pin(m0_pin), m1_pin(m1_pin)
 {}
 

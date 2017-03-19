@@ -23,15 +23,20 @@ A4988::A4988(int steps, int dir_pin, int step_pin)
 :BasicStepperDriver(steps, dir_pin, step_pin)
 {}
 
-A4988::A4988(int steps, int dir_pin, int step_pin, int enable_pin)
-:BasicStepperDriver(steps, dir_pin, step_pin, enable_pin)
+A4988::A4988(int steps, int dir_pin, int step_pin, int sleep_pin)
+:BasicStepperDriver(steps, dir_pin, step_pin, sleep_pin)
+{}
+
+A4988::A4988(int steps, int dir_pin, int step_pin, int sleep_pin, int enable_pin)
+:BasicStepperDriver(steps, dir_pin, step_pin, sleep_pin, enable_pin)
 {}
 
 /*
  * Fully wired.
  * All the necessary control pins for A4988 are connected.
  */
-A4988::A4988(int steps, int dir_pin, int step_pin, int ms1_pin, int ms2_pin, int ms3_pin)
+
+A4988::A4988(int steps, int dir_pin, int step_pin, int ms1_pin, int ms2_pin, int ms3_pin, bool placeholder)
 :BasicStepperDriver(steps, dir_pin, step_pin),
     ms1_pin(ms1_pin), ms2_pin(ms2_pin), ms3_pin(ms3_pin)
 {}
