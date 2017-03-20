@@ -84,6 +84,10 @@ void setup() {
   stepperTheta.setRPM(25);
   stepperPhi.setRPM(25);
 
+  //Intially put both motor drivers in sleep mode
+  stepperTheta.sleep();
+  stepperPhi.sleep();
+
   //Set intial read value of sensors to 0
   topSensor = 0;
   rightSensor = 0;
@@ -368,6 +372,7 @@ void moveThetaBy(int amountToMove) {
   void sleepMode() {
     stepperTheta.sleep();
     stepperPhi.sleep();
+    Serial.println("Motor drivers in sleep mode");
   }
 
   /*
@@ -377,5 +382,6 @@ void moveThetaBy(int amountToMove) {
   void wakeMode() {
     stepperTheta.wake();
     stepperPhi.wake();
+    Serial.println("Motor drivers in wake mode");
   }
 
