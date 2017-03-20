@@ -67,6 +67,7 @@ int top=0;
 int bottom=1;
 int left=2;
 int right=3;
+int count = 0; //Counts the amount times solar sensors are below threshold
 
 //Digital output values from ADS module
 int16_t topSensor, rightSensor, bottomSensor, leftSensor; 
@@ -227,7 +228,25 @@ void commandMove(String params) {
   */
 boolean isAboveThreshold() {
   int summation = topSensor + bottomSensor + leftSensor + rightSensor;
+
+  if(summation < VOLTAGE_THRESHOLD)
+         count++;
+     else
+        count=0;
+      
   return summation >= VOLTAGE_THRESHOLD;
+}
+   
+/*
+*Function that counts isAboveThreshold three consecutive times
+* Returns true if solar sensors have been below the threshold for the past three consecutive reads
+* returns: true or false
+*/
+boolean isBelowThreeTimes(){
+ if(count>=3){
+   return true;
+ }else
+   return false;
 }
 
 /*
