@@ -35,8 +35,14 @@ const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution. Degr
 const int VOLTAGE_THRESHOLD = 0.5; 
 const int VOLTAGE_DIFF = 0.2; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
-const int STEP_PHI = 5; //Amount of steps for each phi movement
+const int STEP_PHI = 25; //Amount of steps for each phi movement
 const int STEP_THETA = 5; //Amount of steps for each theta movement
+const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in milliseconds. Used for sleep mode operations
+
+bool isThetaSleeping; //Returns whether or not motor drivers are currently in sleep mode
+bool isPhiSleeping; 
+bool initiatedSleepMode = false; //Will be used for extending sleeping periods, 30 minutes
+unsigned long lastMeasuredTime;
 
 int dirPin1 = 2; //Arduino pin, direction for first driver
 int stepPin1 = 3; //Arduino pin, step pulse output to first driver
@@ -70,7 +76,7 @@ int right=3;
 int count = 0; //Counts the amount times solar sensors are below threshold
 
 //Digital output values from ADS module
-int16_t topSensor, rightSensor, bottomSensor, leftSensor; 
+float topSensor, rightSensor, bottomSensor, leftSensor; 
 
 //Instantiate both stepper motor driver objects
 DRV8834 stepperTheta(STEPS_PER_REV, dirPin1, stepPin1, sleepPin1); //Driver that controls rotation motor
@@ -86,8 +92,7 @@ void setup() {
   stepperPhi.setRPM(25);
 
   //Intially put both motor drivers in sleep mode
-  stepperTheta.sleep();
-  stepperPhi.sleep();
+  sleepMode();
 
   //Set intial read value of sensors to 0
   topSensor = 0;
@@ -101,9 +106,13 @@ void setup() {
   pinMode(lowerLimitPin,INPUT);
 
   //Intialize ADS1115
+  adc.setGain(GAIN_ONE); //Sets the voltage output range to +/- 4.096V. 1 bit = 0.125mV
   adc.begin();
   //Intialize serial port for debugging purposes
   Serial.begin(9600);
+
+  rightSensor = 5.0;
+  wakeMode();
 }
 
 void loop() {
@@ -136,15 +145,26 @@ void loop() {
     }
   }
   else {
-    readSensors();
-  
+    //readSensors();
+    
     Serial.print("Top: "); Serial.println(topSensor);
     Serial.print("Bottom: "); Serial.println(bottomSensor);
     Serial.print("Left: "); Serial.println(leftSensor);
     Serial.print("Right: "); Serial.println(rightSensor);
     Serial.println();
+
+   if(rightSensor-leftSensor > VOLTAGE_DIFF) {
+    Serial.println("Would send command to step theta down");
+    stepThetaDown();
+    rightSensor = rightSensor - 0.2;
+   }
+   else {
+      if(!isThetaSleeping) {
+        sleepMode();
+      }
+   }
    
-    delay(2000);
+    delay(250);
   }
 }
 
@@ -215,11 +235,15 @@ void commandMove(String params) {
  * returns: void (nothing)
  */
  void readSensors() {
+
+  int16_t maxValue = 2^15; //15 bit- resolution
+  int maxVoltage = 4.096; //Gain set from ADC
+  
   //Read single value of sensors from each ADC analog channel
-  topSensor = adc.readADC_SingleEnded(top);
-  bottomSensor = adc.readADC_SingleEnded(bottom);
-  leftSensor = adc.readADC_SingleEnded(left);
-  rightSensor = adc.readADC_SingleEnded(right);
+  topSensor = adc.readADC_SingleEnded(top)*(maxVoltage/maxValue);
+  bottomSensor = adc.readADC_SingleEnded(bottom)*(maxVoltage/maxValue);
+  leftSensor = adc.readADC_SingleEnded(left)*(maxVoltage/maxValue);
+  rightSensor = adc.readADC_SingleEnded(right)*(maxVoltage/maxValue);
  }
 
  /*
@@ -386,21 +410,96 @@ void moveThetaBy(int amountToMove) {
 
   /*
    * Power down the motor drivers to limit power consumption
-   * Disables control to both motors
+   * Disables control to both motor drivers
+   * selectedDriver : t (for theta driver), p (for phi driver)
+   * If no input is given, both motors are put to sleep
    */
   void sleepMode() {
-    stepperTheta.sleep();
-    stepperPhi.sleep();
-    Serial.println("Motor drivers in sleep mode");
+    sleepMode('n');
+  }
+  
+  void sleepMode(char selectedDriver) {
+    if(selectedDriver == 't') {
+      stepperTheta.sleep();
+      isThetaSleeping = true;
+      
+      Serial.println("Theta motor driver in sleep mode");
+    }
+    else if(selectedDriver == 'p') {
+      stepperPhi.sleep();
+      isPhiSleeping = true;
+      
+      Serial.println("Phi motor driver in sleep mode");
+    }
+    else {
+      stepperTheta.sleep();
+      stepperPhi.sleep();
+      isThetaSleeping = true;
+      isPhiSleeping = true; 
+      
+      Serial.println("Both motor drivers in sleep mode");
+    }
   }
 
   /*
    * Power up the motor drivers, back to ready state
    * Re-enables control back to both motors
+   * selectedDriver : t (for theta driver), p (for phi driver)
+   * If no input is given, both motors are awaken
    */
   void wakeMode() {
-    stepperTheta.wake();
-    stepperPhi.wake();
-    Serial.println("Motor drivers in wake mode");
+    wakeMode('n');
   }
+  
+  void wakeMode(char selectedDriver) {
+    if(selectedDriver == 't') {
+      stepperTheta.wake();
+      isThetaSleeping = false;
+      
+      Serial.println("Theta motor driver in wake mode");
+    }
+    else if(selectedDriver == 'p') {
+      stepperPhi.wake();
+      isPhiSleeping = false;
+      
+      Serial.println("Phi motor driver in wake mode");
+    }
+    else {
+      stepperTheta.wake();
+      stepperPhi.wake();
+      isThetaSleeping = false;
+      isPhiSleeping = false; 
+      
+      Serial.println("Both motor drivers in wake mode");
+    }
+  }
+
+/*
+ * After solar panel has reached its desired position,
+ * it will be 30 minutes
+ */
+  void sleepFor30() {
+    initiatedSleepMode = true;
+    sleepMode();
+    lastMeasuredTime = millis(); //Gets time (in milliseconds) that sleep mode is initated
+  }
+
+  /*
+   * Returns true if 30 minutes has passed since sleep mode has been initiated
+   */
+   bool hasSleptFor30() {
+    //If sleep mode was never initated or one of the motors is awake, 
+    if(!initiatedSleepMode || !isThetaSleeping || !isPhiSleeping)
+      return false;
+
+      long currentTime = millis();
+      long elapsedTime = lastMeasuredTime - currentTime;
+
+      lastMeasuredTime = currentTime;
+
+      if(elapsedTime >= THIRTY_MINUTES_MILLIS)
+        return true;
+      else
+        return false;
+   }
 
