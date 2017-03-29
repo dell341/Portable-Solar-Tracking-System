@@ -14,7 +14,7 @@
  * FOR DEBUGGING PURPOSES ONLY
  */
 //Declare characters that will be used to parse instructions
-const bool DEBUG = true;
+const bool DEBUG = false;
 const char endStatement = ';';
 const char delimeter = '.';
 
@@ -32,11 +32,11 @@ const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution. Degr
  * TODO: Find real value for max phi. Determine if it will be in steps or degrees.
  * TODO: Find real value for voltage difference
  */
-const int VOLTAGE_THRESHOLD = 0.5; 
-const int VOLTAGE_DIFF = 0.2; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
+const float VOLTAGE_THRESHOLD = 0.5; 
+const float VOLTAGE_DIFF = 0.2; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
 const int STEP_PHI = 25; //Amount of steps for each phi movement
-const int STEP_THETA = 5; //Amount of steps for each theta movement
+const int STEP_THETA = 50; //Amount of steps for each theta movement
 const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in milliseconds. Used for sleep mode operations
 
 bool isThetaSleeping; //Returns whether or not motor drivers are currently in sleep mode
@@ -111,7 +111,8 @@ void setup() {
   //Intialize serial port for debugging purposes
   Serial.begin(9600);
 
-  rightSensor = 5.0;
+  rightSensor = 2.0;
+  leftSensor = 0.15;
   wakeMode();
 }
 
@@ -152,19 +153,24 @@ void loop() {
     Serial.print("Left: "); Serial.println(leftSensor);
     Serial.print("Right: "); Serial.println(rightSensor);
     Serial.println();
-
+    
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
     Serial.println("Would send command to step theta down");
-    stepThetaDown();
+    //stepThetaUp();
     rightSensor = rightSensor - 0.2;
    }
+   else if(leftSensor-rightSensor > VOLTAGE_DIFF) {
+    Serial.println("Would send command to step theta up");
+    
+   }
    else {
-      if(!isThetaSleeping) {
+      if(!isPhiSleeping) {
         sleepMode();
       }
    }
-   
-    delay(250);
+
+   delay(1500);
+
   }
 }
 
