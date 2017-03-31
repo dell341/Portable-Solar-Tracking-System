@@ -33,7 +33,7 @@ const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution. Degr
  * TODO: Find real value for voltage difference
  */
 const float VOLTAGE_THRESHOLD = 0.5; 
-const float VOLTAGE_DIFF = 0.2; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
+const float VOLTAGE_DIFF = 0.05; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
 const int STEP_PHI = 25; //Amount of steps for each phi movement
 const int STEP_THETA = 50; //Amount of steps for each theta movement
@@ -42,7 +42,7 @@ const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in
 bool isThetaSleeping; //Returns whether or not motor drivers are currently in sleep mode
 bool isPhiSleeping; 
 bool initiatedSleepMode = false; //Will be used for extending sleeping periods, 30 minutes
-unsigned long lastMeasuredTime;
+unsigned long sleepInitiatedTime;
 
 int dirPin1 = 2; //Arduino pin, direction for first driver
 int stepPin1 = 3; //Arduino pin, step pulse output to first driver
@@ -110,10 +110,8 @@ void setup() {
   adc.begin();
   //Intialize serial port for debugging purposes
   Serial.begin(9600);
-
-  rightSensor = 2.0;
-  leftSensor = 0.15;
-  wakeMode();
+  
+  wakeMode('t');
 }
 
 void loop() {
@@ -146,7 +144,8 @@ void loop() {
     }
   }
   else {
-    //readSensors();
+    readSensors();
+
     
     Serial.print("Top: "); Serial.println(topSensor);
     Serial.print("Bottom: "); Serial.println(bottomSensor);
@@ -154,23 +153,22 @@ void loop() {
     Serial.print("Right: "); Serial.println(rightSensor);
     Serial.println();
     
+    
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
     Serial.println("Would send command to step theta down");
-    //stepThetaUp();
-    rightSensor = rightSensor - 0.2;
+    stepThetaUp();
    }
    else if(leftSensor-rightSensor > VOLTAGE_DIFF) {
     Serial.println("Would send command to step theta up");
-    
+    stepThetaDown();
    }
    else {
-      if(!isPhiSleeping) {
-        sleepMode();
+      if(!isThetaSleeping) {
+        //sleepMode();
       }
    }
 
-   delay(1500);
-
+   //delay(500);
   }
 }
 
@@ -242,14 +240,24 @@ void commandMove(String params) {
  */
  void readSensors() {
 
-  int16_t maxValue = 2^15; //15 bit- resolution
-  int maxVoltage = 4.096; //Gain set from ADC
-  
-  //Read single value of sensors from each ADC analog channel
-  topSensor = adc.readADC_SingleEnded(top)*(maxVoltage/maxValue);
-  bottomSensor = adc.readADC_SingleEnded(bottom)*(maxVoltage/maxValue);
-  leftSensor = adc.readADC_SingleEnded(left)*(maxVoltage/maxValue);
-  rightSensor = adc.readADC_SingleEnded(right)*(maxVoltage/maxValue);
+  float maxValue = 32767; //15 bit- resolution minus 1
+  float maxVoltage = 4.096; //Gain set from ADC
+
+  topSensor = adc.readADC_SingleEnded(top);
+  bottomSensor = adc.readADC_SingleEnded(bottom);
+  leftSensor = adc.readADC_SingleEnded(left);
+  rightSensor = adc.readADC_SingleEnded(right);
+
+   Serial.print("RAW Top: "); Serial.println(topSensor);
+    Serial.print("RAW Bottom: "); Serial.println(bottomSensor);
+    Serial.print("RAW Left: "); Serial.println(leftSensor);
+    Serial.print("RAW Right: "); Serial.println(rightSensor);
+    Serial.println();
+    
+  topSensor = topSensor*(maxVoltage/maxValue);
+  bottomSensor = bottomSensor*(maxVoltage/maxValue);
+  leftSensor = leftSensor*(maxVoltage/maxValue);
+  rightSensor = rightSensor*(maxVoltage/maxValue);
  }
 
  /*
@@ -458,6 +466,8 @@ void moveThetaBy(int amountToMove) {
   }
   
   void wakeMode(char selectedDriver) {
+    initiatedSleepMode = false;
+    
     if(selectedDriver == 't') {
       stepperTheta.wake();
       isThetaSleeping = false;
@@ -487,7 +497,7 @@ void moveThetaBy(int amountToMove) {
   void sleepFor30() {
     initiatedSleepMode = true;
     sleepMode();
-    lastMeasuredTime = millis(); //Gets time (in milliseconds) that sleep mode is initated
+    sleepInitiatedTime = millis(); //Gets time (in milliseconds) that sleep mode is initated
   }
 
   /*
@@ -499,12 +509,12 @@ void moveThetaBy(int amountToMove) {
       return false;
 
       long currentTime = millis();
-      long elapsedTime = lastMeasuredTime - currentTime;
+      long elapsedTime = sleepInitiatedTime - currentTime;
 
-      lastMeasuredTime = currentTime;
-
-      if(elapsedTime >= THIRTY_MINUTES_MILLIS)
+      //If 30 minutes has passed since the sleep mode initiation, return true
+      if(elapsedTime >= THIRTY_MINUTES_MILLIS) { 
         return true;
+      }
       else
         return false;
    }
