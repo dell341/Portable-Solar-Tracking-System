@@ -44,16 +44,16 @@ bool isPhiSleeping;
 bool initiatedSleepMode = false; //Will be used for extending sleeping periods, 30 minutes
 unsigned long sleepInitiatedTime;
 
-int dirPin1 = 2; //Arduino pin, direction for first driver
-int stepPin1 = 3; //Arduino pin, step pulse output to first driver
-int sleepPin1 = 4; //Arduino pin, sleep/enable pin for the first driver
-int dirPin2 = 5; //Arduino pin, direction for second driver
-int stepPin2 = 6; //Arduino pin, step pulse output to second driver
+int dirPin1 = 12; //Arduino pin, direction for first driver
+int stepPin1 = 11; //Arduino pin, step pulse output to first driver
+int sleepPin1 = 10; //Arduino pin, sleep/enable pin for the first driver
+int dirPin2 = 9; //Arduino pin, direction for second driver
+int stepPin2 = 8; //Arduino pin, step pulse output to second driver
 int sleepPin2 = 7; //Arduino pin, sleep/enable pin for the second driver
 
-int upperLimitPin = 10; //Arduino pin, hall sensor - solar panel phi position upper limit
-int homePin = 11; //Arduino pin, hall sensor - solar panel home position 
-int lowerLimitPin = 12; //Arduino pin, hall sensor - solar panel phi position lower limit
+int upperLimitPin = 1; //Arduino pin, hall sensor - solar panel phi position upper limit
+int homePin = 2; //Arduino pin, hall sensor - solar panel home position 
+int lowerLimitPin = 3; //Arduino pin, hall sensor - solar panel phi position lower limit
 
 /*
  * Analog to Digital converter module uses I2C interface.
@@ -69,10 +69,10 @@ Adafruit_ADS1115 adc;
  * Analog channels for solar sensors light intensity
  * Top - 0, Bottom - 1, Left - 2, Right - 3
  */
-int top=0;
-int bottom=1;
-int left=2;
-int right=3;
+int top=0; //Hole
+int bottom=1; //!Hole
+int left=2; //!Gear
+int right=3; //Gear
 int count = 0; //Counts the amount times solar sensors are below threshold
 
 //Digital output values from ADS module
@@ -112,6 +112,7 @@ void setup() {
   Serial.begin(9600);
   
   wakeMode('t');
+  //wakeMode('p');
 }
 
 void loop() {
@@ -145,7 +146,6 @@ void loop() {
   }
   else {
     readSensors();
-
     
     Serial.print("Top: "); Serial.println(topSensor);
     Serial.print("Bottom: "); Serial.println(bottomSensor);
@@ -155,12 +155,20 @@ void loop() {
     
     
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
-    Serial.println("Would send command to step theta down");
+    Serial.println("Would send command to step theta up");
     stepThetaUp();
    }
    else if(leftSensor-rightSensor > VOLTAGE_DIFF) {
-    Serial.println("Would send command to step theta up");
+    Serial.println("Would send command to step theta down");
     stepThetaDown();
+   }
+   else if(topSensor-bottomSensor > VOLTAGE_DIFF) {
+    Serial.println("Would send command to step phi up");
+    stepPhiUp();
+   }
+   else if(bottomSensor-topSensor > VOLTAGE_DIFF) {
+    Serial.println("Would send command to step phi down");
+    stepPhiDown();
    }
    else {
       if(!isThetaSleeping) {
@@ -371,7 +379,7 @@ void movePhiBy(int amountToMove) {
  */
  void stepPhiUp() {
   Serial.println("Stepping phi up");
-    stepperPhi.move(STEP_PHI);
+    stepperPhi.move(-STEP_PHI);
  }
 
  /*
@@ -379,7 +387,7 @@ void movePhiBy(int amountToMove) {
   */
   void stepPhiDown() {
     Serial.println("Stepping phi down");
-      stepperPhi.move(-STEP_PHI);
+      stepperPhi.move(STEP_PHI);
   }
 
 /*
