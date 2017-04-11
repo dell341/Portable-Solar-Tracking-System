@@ -110,9 +110,6 @@ void setup() {
   adc.begin();
   //Intialize serial port for debugging purposes
   Serial.begin(9600);
-  
-  wakeMode('t');
-  //wakeMode('p');
 }
 
 void loop() {
@@ -155,19 +152,19 @@ void loop() {
     
     
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
-    Serial.println("Would send command to step theta up");
+    adjutingTheta(); //Puts the phi driver to sleep and wakes the theta driver
     stepThetaUp();
    }
    else if(leftSensor-rightSensor > VOLTAGE_DIFF) {
-    Serial.println("Would send command to step theta down");
+    adjustingTheta();
     stepThetaDown();
    }
    else if(topSensor-bottomSensor > VOLTAGE_DIFF) {
-    Serial.println("Would send command to step phi up");
+    adjustingPhi(); //Puts the theta driver to sleep and wakes the phi driver
     stepPhiUp();
    }
    else if(bottomSensor-topSensor > VOLTAGE_DIFF) {
-    Serial.println("Would send command to step phi down");
+    adjustingPhi();
     stepPhiDown();
    }
    else {
@@ -496,6 +493,22 @@ void moveThetaBy(int amountToMove) {
       
       Serial.println("Both motor drivers in wake mode");
     }
+  }
+  
+  /*
+   * When adjusting theta, put phi to sleep
+   */
+  void adjustingTheta() {
+    sleepMode('p');
+    wakeMode('t');
+  }
+
+ /*
+  * When adjusting phi, put theta to sleep
+  */
+  void adjustingPhi() {
+    sleepMode('t');
+    wakeMode('p');
   }
 
 /*
