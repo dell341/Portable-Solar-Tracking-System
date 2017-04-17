@@ -32,11 +32,11 @@ const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution. Degr
  * TODO: Find real value for max phi. Determine if it will be in steps or degrees.
  * TODO: Find real value for voltage difference
  */
-const float VOLTAGE_THRESHOLD = 0.5; 
+const float VOLTAGE_THRESHOLD = 0.20; 
 const float VOLTAGE_DIFF = 0.05; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
-const int STEP_PHI = 25; //Amount of steps for each phi movement
-const int STEP_THETA = 50; //Amount of steps for each theta movement
+const int STEP_PHI = 50; //Amount of steps for each phi movement
+const int STEP_THETA = 25; //Amount of steps for each theta movement
 const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in milliseconds. Used for sleep mode operations
 
 bool isThetaSleeping; //Returns whether or not motor drivers are currently in sleep mode
@@ -51,9 +51,9 @@ int dirPin2 = 9; //Arduino pin, direction for second driver
 int stepPin2 = 8; //Arduino pin, step pulse output to second driver
 int sleepPin2 = 7; //Arduino pin, sleep/enable pin for the second driver
 
-int upperLimitPin = 1; //Arduino pin, hall sensor - solar panel phi position upper limit
-int homePin = 2; //Arduino pin, hall sensor - solar panel home position 
-int lowerLimitPin = 3; //Arduino pin, hall sensor - solar panel phi position lower limit
+int upperLimitPin = 2; //Arduino pin, hall sensor - solar panel phi position upper limit
+int homePin = 3; //Arduino pin, hall sensor - solar panel home position 
+int lowerLimitPin = 4; //Arduino pin, hall sensor - solar panel phi position lower limit
 
 /*
  * Analog to Digital converter module uses I2C interface.
@@ -126,6 +126,9 @@ void loop() {
         case 'm': //Moves motor up or down
           commandMove(params);
         break;
+        case 'r': //Read values
+          readSensors();
+        break;
         case 's': //Steps motor up or down
           commandStep(params);
         break;
@@ -142,17 +145,8 @@ void loop() {
     }
   }
   else {
-    readSensors();
-    
-    Serial.print("Top: "); Serial.println(topSensor);
-    Serial.print("Bottom: "); Serial.println(bottomSensor);
-    Serial.print("Left: "); Serial.println(leftSensor);
-    Serial.print("Right: "); Serial.println(rightSensor);
-    Serial.println();
-    
-    
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
-    adjutingTheta(); //Puts the phi driver to sleep and wakes the theta driver
+    adjustingTheta(); //Puts the phi driver to sleep and wakes the theta driver
     stepThetaUp();
    }
    else if(leftSensor-rightSensor > VOLTAGE_DIFF) {
@@ -169,11 +163,11 @@ void loop() {
    }
    else {
       if(!isThetaSleeping) {
-        //sleepMode();
+        sleepMode();
       }
    }
-
-   //delay(500);
+    
+   delay(500);
   }
 }
 
@@ -223,9 +217,11 @@ void commandMove(String params) {
   char m = params.charAt(0); //selected motor
   int amount = params.substring(i1+1).toInt(); //selected direction
 
-  Serial.print("Move motor by ");
-  Serial.print(amount);
-  Serial.println();
+  if(DEBUG) {
+    Serial.print("Move motor by ");
+    Serial.print(amount);
+    Serial.println();
+  }
   switch(m) {
     case 't':
         moveThetaBy(amount);
@@ -253,16 +249,26 @@ void commandMove(String params) {
   leftSensor = adc.readADC_SingleEnded(left);
   rightSensor = adc.readADC_SingleEnded(right);
 
-   Serial.print("RAW Top: "); Serial.println(topSensor);
+  if(DEBUG) {
+    Serial.print("RAW Top: "); Serial.println(topSensor);
     Serial.print("RAW Bottom: "); Serial.println(bottomSensor);
     Serial.print("RAW Left: "); Serial.println(leftSensor);
     Serial.print("RAW Right: "); Serial.println(rightSensor);
     Serial.println();
+  } 
     
   topSensor = topSensor*(maxVoltage/maxValue);
   bottomSensor = bottomSensor*(maxVoltage/maxValue);
   leftSensor = leftSensor*(maxVoltage/maxValue);
   rightSensor = rightSensor*(maxVoltage/maxValue);
+
+  if(DEBUG) {
+    Serial.print("Top: "); Serial.println(topSensor);
+    Serial.print("Bottom: "); Serial.println(bottomSensor);
+    Serial.print("Left: "); Serial.println(leftSensor);
+    Serial.print("Right: "); Serial.println(rightSensor);
+    Serial.println();
+  } 
  }
 
  /*
