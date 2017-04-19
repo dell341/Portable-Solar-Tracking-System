@@ -14,8 +14,8 @@
  * FOR DEBUGGING PURPOSES ONLY
  */
 //Declare characters that will be used to parse instructions
-const bool MANUAL = true; //Manually control the device with commands
-const bool DEBUG = false;
+const bool MANUAL = false; //Manually control the device with commands
+const bool DEBUG = true;
 const char endStatement = ';';
 const char delimeter = '.';
 
@@ -40,6 +40,7 @@ const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar p
 const int STEP_PHI = 100; //Amount of steps for each phi movement
 const int STEP_THETA = 25; //Amount of steps for each theta movement
 const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in milliseconds. Used for sleep mode operations
+
 
 bool isThetaSleeping; //Returns whether or not motor drivers are currently in sleep mode
 bool isPhiSleeping; 
@@ -117,7 +118,7 @@ void setup() {
 }
 
 void loop() {
-  if(MANUAL) {
+  if(MANUAL) { //Manual mode
 
     Serial.print("Min Limit : "); Serial.println(isAtMin());
     Serial.print("Home : "); Serial.println(isAtHome());
@@ -155,7 +156,21 @@ void loop() {
       }
     }
   }
-  else {
+  else { //Normal Mode
+
+    //If sleep mode was initiated but it has not slept for 30 minutes, don't continue
+    if(initiatedSleepMode && !hasSleptFor30())
+      return;
+      
+    if(!isAboveThreshold()) { //Check if minimum voltage threshold is reached. i.e Daylight check
+      sleepFor30(); //Intitiate 30 minute sleep mode
+
+      if(isBelowThreeTimes()) { //If threshold has been measured below at least 3 times, then go to home
+        goToHome();
+      }
+      return;
+    }
+    
     readSensors();
     
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
@@ -292,6 +307,9 @@ void commandMove(String params) {
   */
 boolean isAboveThreshold() {
   int summation = topSensor + bottomSensor + leftSensor + rightSensor;
+
+  if(DEBUG)
+    Serial.print("Summation : "); Serial.println(summation);
 
   if(summation < VOLTAGE_THRESHOLD)
          count++;
@@ -600,18 +618,20 @@ void moveThetaBy(int amountToMove) {
    * Returns true if 30 minutes has passed since sleep mode has been initiated
    */
    bool hasSleptFor30() {
-    //If sleep mode was never initated or one of the motors is awake, 
-    if(!initiatedSleepMode || !isThetaSleeping || !isPhiSleeping)
-      return false;
+    //If sleep mode was never initated or one of the motors is awake, return true and continue code
+    if(!initiatedSleepMode || !isThetaSleeping || !isPhiSleeping) {
+      return true;
+    }
 
       long currentTime = millis();
-      long elapsedTime = sleepInitiatedTime - currentTime;
-
+      long elapsedTime = currentTime - sleepInitiatedTime;
+      
       //If 30 minutes has passed since the sleep mode initiation, return true
       if(elapsedTime >= THIRTY_MINUTES_MILLIS) { 
         return true;
       }
-      else
+      else {
         return false;
+      }
    }
 
