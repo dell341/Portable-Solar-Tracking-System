@@ -33,9 +33,10 @@ const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution. Degr
  * TODO: Find real value for voltage difference
  */
 const float VOLTAGE_THRESHOLD = 0.20; 
-const float VOLTAGE_DIFF = 0.05; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
+//const float VOLTAGE_DIFF = 0.05; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
+const float VOLTAGE_DIFF = 0.10; //Deadband for actual solar feedback
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
-const int STEP_PHI = 50; //Amount of steps for each phi movement
+const int STEP_PHI = 100; //Amount of steps for each phi movement
 const int STEP_THETA = 25; //Amount of steps for each theta movement
 const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in milliseconds. Used for sleep mode operations
 
@@ -110,10 +111,18 @@ void setup() {
   adc.begin();
   //Intialize serial port for debugging purposes
   Serial.begin(9600);
+
+  //goToHome(); //Panel goes to home position
 }
 
 void loop() {
   if(DEBUG) {
+    Serial.print("MAX: "); Serial.println(isAtMax());
+    Serial.print("HOME: "); Serial.println(isAtHome());
+    Serial.print("MIN: "); Serial.println(isAtMin());
+    Serial.println();
+    delay(1000);
+    
     if(Serial.available()) {
       //Separates instructions by end-statement characters
       instruction = Serial.readStringUntil(endStatement); 
@@ -145,12 +154,14 @@ void loop() {
     }
   }
   else {
+    readSensors();
+    
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
     adjustingTheta(); //Puts the phi driver to sleep and wakes the theta driver
     stepThetaUp();
    }
    else if(leftSensor-rightSensor > VOLTAGE_DIFF) {
-    adjustingTheta();
+    adjustingTheta(); //Puts the phi driver to sleep and wakes the theta driver
     stepThetaDown();
    }
    else if(topSensor-bottomSensor > VOLTAGE_DIFF) {
@@ -158,7 +169,7 @@ void loop() {
     stepPhiUp();
    }
    else if(bottomSensor-topSensor > VOLTAGE_DIFF) {
-    adjustingPhi();
+    adjustingPhi(); //Puts the theta driver to sleep and wakes the phi driver
     stepPhiDown();
    }
    else {
@@ -167,7 +178,7 @@ void loop() {
       }
    }
     
-   delay(500);
+   //delay(500);
   }
 }
 
@@ -262,13 +273,13 @@ void commandMove(String params) {
   leftSensor = leftSensor*(maxVoltage/maxValue);
   rightSensor = rightSensor*(maxVoltage/maxValue);
 
-  if(DEBUG) {
+  //if(DEBUG) {
     Serial.print("Top: "); Serial.println(topSensor);
     Serial.print("Bottom: "); Serial.println(bottomSensor);
     Serial.print("Left: "); Serial.println(leftSensor);
     Serial.print("Right: "); Serial.println(rightSensor);
     Serial.println();
-  } 
+  //} 
  }
 
  /*
@@ -342,24 +353,33 @@ boolean isAtHome() {
  * returns: void
  */
 void goToHome() {
+  adjustingPhi(); //Wake the phi driver
+  
   if(isAtHome()) {//If solar panel is already at home position, leave function
     phiPosition = 0;
+    sleepMode('p');
+    Serial.println("Found Home");
     return;
   }
 
     //First increase phi to find home, stop if upper limit sensor is reached
-    while(!isAtHome() || !isAtMax())
+    while(!isAtHome() && !isAtMax())
       stepPhiUp();
 
+    Serial.println("UpperLimit Reached");
+    
   //If home position was reached leave function, else move the other direction
     if(isAtHome()) {
       phiPosition = 0;
+      sleepMode('p');
+      Serial.println("Found Home");
       return;
     }
 
   //Decrement phi to find home, stop if lower limit sensor is reached
-    while(!isAtHome() || !isAtMin())
+    while(!isAtHome() && !isAtMin())
       stepPhiDown();
+      Serial.println("LowerLimit Reached");
 }
 
 /*
@@ -371,8 +391,11 @@ void movePhiBy(int amountToMove) {
   //if(abs(amountToMove) > 100)
     //return;
 
-  Serial.println("Moving phi");
-  stepperPhi.move(amountToMove);
+  Serial.print("Moving phi - ");
+  Serial.print(amountToMove);
+  Serial.println();
+  
+  stepperPhi.move(-amountToMove); //Negative movement will be upward movement in our csae
   phiPosition = phiPosition + amountToMove; //Update phi position
 }
 
@@ -381,16 +404,25 @@ void movePhiBy(int amountToMove) {
  * returns: void
  */
  void stepPhiUp() {
+  if(isAtMax()) { //If panel is already at max position, do not increment anymore
+    Serial.println("Max reached - step up");
+    return;
+  }
+  
   Serial.println("Stepping phi up");
-    stepperPhi.move(-STEP_PHI);
+  movePhiBy(STEP_PHI);
  }
 
  /*
   * Comand the phi driver to step down by predefined amount
   */
   void stepPhiDown() {
+    if(isAtMin()) { //If panel is already at min position, do not decrement anymore
+      Serial.println("Min reached - step down");
+      return;
+    }
     Serial.println("Stepping phi down");
-      stepperPhi.move(STEP_PHI);
+    movePhiBy(-STEP_PHI);
   }
 
 /*
