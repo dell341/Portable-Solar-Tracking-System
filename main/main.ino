@@ -14,6 +14,7 @@
  * FOR DEBUGGING PURPOSES ONLY
  */
 //Declare characters that will be used to parse instructions
+const bool MANUAL = false; //Manually control the device with commands
 const bool DEBUG = false;
 const char endStatement = ';';
 const char delimeter = '.';
@@ -116,13 +117,7 @@ void setup() {
 }
 
 void loop() {
-  if(DEBUG) {
-    Serial.print("MAX: "); Serial.println(isAtMax());
-    Serial.print("HOME: "); Serial.println(isAtHome());
-    Serial.print("MIN: "); Serial.println(isAtMin());
-    Serial.println();
-    delay(1000);
-    
+  if(MANUAL) {
     if(Serial.available()) {
       //Separates instructions by end-statement characters
       instruction = Serial.readStringUntil(endStatement); 
@@ -194,9 +189,11 @@ void commandStep(String params) {
   char m = params.charAt(0); //selected motor
   char d = params.charAt(i1+1); //selected direction
 
-  Serial.print("Step motor by ");
-  Serial.print(STEP_PHI);
-  Serial.println();
+  if(DEBUG) {
+    Serial.print("Step motor by ");
+    Serial.print(STEP_PHI);
+    Serial.println();
+  }
   switch(m) {
     case 't':
       if(d == 'u')
@@ -273,13 +270,13 @@ void commandMove(String params) {
   leftSensor = leftSensor*(maxVoltage/maxValue);
   rightSensor = rightSensor*(maxVoltage/maxValue);
 
-  //if(DEBUG) {
+  if(DEBUG) {
     Serial.print("Top: "); Serial.println(topSensor);
     Serial.print("Bottom: "); Serial.println(bottomSensor);
     Serial.print("Left: "); Serial.println(leftSensor);
     Serial.print("Right: "); Serial.println(rightSensor);
     Serial.println();
-  //} 
+  } 
  }
 
  /*
@@ -358,6 +355,8 @@ void goToHome() {
   if(isAtHome()) {//If solar panel is already at home position, leave function
     phiPosition = 0;
     sleepMode('p');
+    
+    if(DEBUG)
     Serial.println("Found Home");
     return;
   }
@@ -365,13 +364,16 @@ void goToHome() {
     //First increase phi to find home, stop if upper limit sensor is reached
     while(!isAtHome() && !isAtMax())
       stepPhiUp();
-
+      
+    if(DEBUG)
     Serial.println("UpperLimit Reached");
     
   //If home position was reached leave function, else move the other direction
     if(isAtHome()) {
       phiPosition = 0;
       sleepMode('p');
+
+      if(DEBUG)
       Serial.println("Found Home");
       return;
     }
