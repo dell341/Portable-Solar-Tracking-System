@@ -14,7 +14,7 @@
  * FOR DEBUGGING PURPOSES ONLY
  */
 //Declare characters that will be used to parse instructions
-const bool MANUAL = false; //Manually control the device with commands
+const bool MANUAL = true; //Manually control the device with commands
 const bool DEBUG = false;
 const char endStatement = ';';
 const char delimeter = '.';
@@ -118,6 +118,13 @@ void setup() {
 
 void loop() {
   if(MANUAL) {
+
+    Serial.print("Min Limit : "); Serial.println(isAtMin());
+    Serial.print("Home : "); Serial.println(isAtHome());
+    Serial.print("Max Limit: "); Serial.println(isAtMax());
+    Serial.println();
+    delay(500);
+    
     if(Serial.available()) {
       //Separates instructions by end-statement characters
       instruction = Serial.readStringUntil(endStatement); 
@@ -366,7 +373,7 @@ void goToHome() {
       stepPhiUp();
       
     if(DEBUG)
-    Serial.println("UpperLimit Reached");
+      Serial.println("UpperLimit Reached");
     
   //If home position was reached leave function, else move the other direction
     if(isAtHome()) {
@@ -374,14 +381,17 @@ void goToHome() {
       sleepMode('p');
 
       if(DEBUG)
-      Serial.println("Found Home");
+        Serial.println("Found Home");
+      
       return;
     }
 
   //Decrement phi to find home, stop if lower limit sensor is reached
     while(!isAtHome() && !isAtMin())
       stepPhiDown();
-      Serial.println("LowerLimit Reached");
+
+      if(DEBUG)
+        Serial.println("LowerLimit Reached");
 }
 
 /*
@@ -393,9 +403,11 @@ void movePhiBy(int amountToMove) {
   //if(abs(amountToMove) > 100)
     //return;
 
-  Serial.print("Moving phi - ");
-  Serial.print(amountToMove);
-  Serial.println();
+  if(DEBUG) {
+    Serial.print("Moving phi - ");
+    Serial.print(amountToMove);
+    Serial.println();
+  }
   
   stepperPhi.move(-amountToMove); //Negative movement will be upward movement in our csae
   phiPosition = phiPosition + amountToMove; //Update phi position
@@ -407,11 +419,16 @@ void movePhiBy(int amountToMove) {
  */
  void stepPhiUp() {
   if(isAtMax()) { //If panel is already at max position, do not increment anymore
-    Serial.println("Max reached - step up");
+
+    if(DEBUG)
+      Serial.println("Max reached - step up");
+    
     return;
   }
-  
-  Serial.println("Stepping phi up");
+
+  if(DEBUG)
+    Serial.println("Stepping phi up");
+    
   movePhiBy(STEP_PHI);
  }
 
@@ -420,10 +437,16 @@ void movePhiBy(int amountToMove) {
   */
   void stepPhiDown() {
     if(isAtMin()) { //If panel is already at min position, do not decrement anymore
-      Serial.println("Min reached - step down");
+
+      if(DEBUG)
+        Serial.println("Min reached - step down");
+        
       return;
     }
-    Serial.println("Stepping phi down");
+
+    if(DEBUG)
+      Serial.println("Stepping phi down");
+      
     movePhiBy(-STEP_PHI);
   }
 
@@ -445,7 +468,9 @@ void moveThetaBy(int amountToMove) {
   if(abs(amountToMove) > 200)
     return;
 
-  Serial.println("Moving theta");
+  if(DEBUG)
+    Serial.println("Moving theta");
+    
   stepperTheta.move(amountToMove);
   thetaPosition = thetaPosition + amountToMove; //Update theta position
 }
@@ -455,7 +480,9 @@ void moveThetaBy(int amountToMove) {
  * returns: void
  */
  void stepThetaUp() {
-    Serial.println("Stepping theta up");
+    if(DEBUG)
+      Serial.println("Stepping theta up");
+      
     stepperTheta.move(STEP_THETA);
  }
 
@@ -463,8 +490,10 @@ void moveThetaBy(int amountToMove) {
   * Comand the Theta driver to step down by predefined amount
   */
   void stepThetaDown() {
-    Serial.println("Stepping theta down");
-      stepperTheta.move(-STEP_THETA);
+    if(DEBUG)
+      Serial.println("Stepping theta down");
+      
+     stepperTheta.move(-STEP_THETA);
   }
 
   /*
@@ -481,13 +510,15 @@ void moveThetaBy(int amountToMove) {
     if(selectedDriver == 't') {
       stepperTheta.sleep();
       isThetaSleeping = true;
-      
+
+      if(DEBUG)
       Serial.println("Theta motor driver in sleep mode");
     }
     else if(selectedDriver == 'p') {
       stepperPhi.sleep();
       isPhiSleeping = true;
-      
+
+      if(DEBUG)
       Serial.println("Phi motor driver in sleep mode");
     }
     else {
@@ -495,7 +526,8 @@ void moveThetaBy(int amountToMove) {
       stepperPhi.sleep();
       isThetaSleeping = true;
       isPhiSleeping = true; 
-      
+
+      if(DEBUG)
       Serial.println("Both motor drivers in sleep mode");
     }
   }
@@ -516,13 +548,15 @@ void moveThetaBy(int amountToMove) {
     if(selectedDriver == 't') {
       stepperTheta.wake();
       isThetaSleeping = false;
-      
+
+      if(DEBUG)
       Serial.println("Theta motor driver in wake mode");
     }
     else if(selectedDriver == 'p') {
       stepperPhi.wake();
       isPhiSleeping = false;
-      
+
+      if(DEBUG)
       Serial.println("Phi motor driver in wake mode");
     }
     else {
@@ -530,7 +564,8 @@ void moveThetaBy(int amountToMove) {
       stepperPhi.wake();
       isThetaSleeping = false;
       isPhiSleeping = false; 
-      
+
+      if(DEBUG)
       Serial.println("Both motor drivers in wake mode");
     }
   }
