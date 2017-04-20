@@ -15,7 +15,7 @@
  */
 //Declare characters that will be used to parse instructions
 const bool MANUAL = false; //Manually control the device with commands
-const bool DEBUG = true;
+const bool DEBUG = false;
 const char endStatement = ';';
 const char delimeter = '.';
 
@@ -39,8 +39,8 @@ const float VOLTAGE_DIFF = 0.10; //Deadband for actual solar feedback
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
 const int STEP_PHI = 100; //Amount of steps for each phi movement
 const int STEP_THETA = 25; //Amount of steps for each theta movement
+const int STEPS_TO_HOME = 2750; //Amount of stepper steps to reach home from min or max limit
 const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in milliseconds. Used for sleep mode operations
-
 
 bool isThetaSleeping; //Returns whether or not motor drivers are currently in sleep mode
 bool isPhiSleeping; 
@@ -120,11 +120,13 @@ void setup() {
 void loop() {
   if(MANUAL) { //Manual mode
 
+  
     Serial.print("Min Limit : "); Serial.println(isAtMin());
     Serial.print("Home : "); Serial.println(isAtHome());
     Serial.print("Max Limit: "); Serial.println(isAtMax());
     Serial.println();
     delay(500);
+    
     
     if(Serial.available()) {
       //Separates instructions by end-statement characters
@@ -163,11 +165,12 @@ void loop() {
       return;
       
     if(!isAboveThreshold()) { //Check if minimum voltage threshold is reached. i.e Daylight check
-      sleepFor30(); //Intitiate 30 minute sleep mode
-
       if(isBelowThreeTimes()) { //If threshold has been measured below at least 3 times, then go to home
-        goToHome();
+        if(count == 4) //Only go to home on the 4th count
+          goToHome();
       }
+
+      sleepFor30(); //Intitiate 30 minute sleep mode
       return;
     }
     
@@ -190,9 +193,7 @@ void loop() {
     stepPhiDown();
    }
    else {
-      if(!isThetaSleeping) {
-        sleepMode();
-      }
+      sleepFor30(); //Intitate 30 minute sleep mode
    }
     
    //delay(500);
@@ -306,16 +307,19 @@ void commandMove(String params) {
   * returns: true or false
   */
 boolean isAboveThreshold() {
+  readSensors();
   int summation = topSensor + bottomSensor + leftSensor + rightSensor;
-
-  if(DEBUG)
-    Serial.print("Summation : "); Serial.println(summation);
 
   if(summation < VOLTAGE_THRESHOLD)
          count++;
      else
         count=0;
-      
+
+  if(DEBUG) {
+    Serial.print("Summation : "); Serial.println(summation);
+    Serial.print("Count : "); Serial.println(count);
+  }
+  
   return summation >= VOLTAGE_THRESHOLD;
 }
    
@@ -325,7 +329,7 @@ boolean isAboveThreshold() {
 * returns: true or false
 */
 boolean isBelowThreeTimes(){
- if(count>=3){
+ if(count>3){
    return true;
  }else
    return false;
@@ -385,13 +389,18 @@ void goToHome() {
     Serial.println("Found Home");
     return;
   }
+    //First decrement phi to find home, stop if lower limit sensor is reached
+    while(!isAtHome() && !isAtMin())
+      stepPhiDown();
 
-    //First increase phi to find home, stop if upper limit sensor is reached
-    while(!isAtHome() && !isAtMax())
-      stepPhiUp();
-      
-    if(DEBUG)
-      Serial.println("UpperLimit Reached");
+      if(DEBUG)
+        Serial.println("LowerLimit Reached");
+
+    /*Some temp code, because home sensor isn't working properly*/
+   if(isAtMin()) {
+    movePhiBy(STEPS_TO_HOME);
+    return;
+   }
     
   //If home position was reached leave function, else move the other direction
     if(isAtHome()) {
@@ -404,12 +413,12 @@ void goToHome() {
       return;
     }
 
-  //Decrement phi to find home, stop if lower limit sensor is reached
-    while(!isAtHome() && !isAtMin())
-      stepPhiDown();
-
-      if(DEBUG)
-        Serial.println("LowerLimit Reached");
+    //Increase phi to find home, stop if upper limit sensor is reached
+    while(!isAtHome() && !isAtMax())
+      stepPhiUp();
+      
+    if(DEBUG)
+      Serial.println("UpperLimit Reached");
 }
 
 /*
