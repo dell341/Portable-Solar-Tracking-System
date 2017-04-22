@@ -15,7 +15,7 @@
  */
 //Declare characters that will be used to parse instructions
 const bool MANUAL = false; //Manually control the device with commands
-const bool DEBUG = false;
+const bool DEBUG = true;
 const char endStatement = ';';
 const char delimeter = '.';
 
@@ -35,17 +35,21 @@ const int STEPS_PER_REV = 200; //Both motors have 200 steps per revolution. Degr
  */
 const float VOLTAGE_THRESHOLD = 0.20; 
 //const float VOLTAGE_DIFF = 0.05; //Deadband for differences in voltage levels between sensors. Margin where nothing is changed
-const float VOLTAGE_DIFF = 0.10; //Deadband for actual solar feedback
+const float VOLTAGE_DIFF = 0.15; //Deadband for actual solar feedback
 const int MAX_PHI = 100; //Maximum position for phi on both sides of the solar panel. +max_phi(degrees) and -max_phi(degrees)
 const int STEP_PHI = 100; //Amount of steps for each phi movement
 const int STEP_THETA = 25; //Amount of steps for each theta movement
 const int STEPS_TO_HOME = 2750; //Amount of stepper steps to reach home from min or max limit
 const unsigned long THIRTY_MINUTES_MILLIS = 1800000; //30 minutes represented in milliseconds. Used for sleep mode operations
+const unsigned long THIRTY_SECONDS_MILLIS = 30000; //30 seconds. If ideal position is found, wait 30 seconds before going to sleep
 
 bool isThetaSleeping; //Returns whether or not motor drivers are currently in sleep mode
 bool isPhiSleeping; 
 bool initiatedSleepMode = false; //Will be used for extending sleeping periods, 30 minutes
+bool initatedDelaySleepMode = false; //Will be used to delay sleeping, when all sensors are equal
+
 unsigned long sleepInitiatedTime;
+unsigned long delaySleepInitiatedTime;
 
 int dirPin1 = 12; //Arduino pin, direction for first driver
 int stepPin1 = 11; //Arduino pin, step pulse output to first driver
@@ -119,14 +123,12 @@ void setup() {
 
 void loop() {
   if(MANUAL) { //Manual mode
-
-  
+    
     Serial.print("Min Limit : "); Serial.println(isAtMin());
     Serial.print("Home : "); Serial.println(isAtHome());
     Serial.print("Max Limit: "); Serial.println(isAtMax());
     Serial.println();
     delay(500);
-    
     
     if(Serial.available()) {
       //Separates instructions by end-statement characters
@@ -159,7 +161,6 @@ void loop() {
     }
   }
   else { //Normal Mode
-
     //If sleep mode was initiated but it has not slept for 30 minutes, don't continue
     if(initiatedSleepMode && !hasSleptFor30())
       return;
@@ -177,25 +178,40 @@ void loop() {
     readSensors();
     
    if(rightSensor-leftSensor > VOLTAGE_DIFF) {
+    initatedDelaySleepMode = false;
     adjustingTheta(); //Puts the phi driver to sleep and wakes the theta driver
     stepThetaUp();
    }
    else if(leftSensor-rightSensor > VOLTAGE_DIFF) {
+    initatedDelaySleepMode = false;
     adjustingTheta(); //Puts the phi driver to sleep and wakes the theta driver
     stepThetaDown();
    }
    else if(topSensor-bottomSensor > VOLTAGE_DIFF) {
+    initatedDelaySleepMode = false;
     adjustingPhi(); //Puts the theta driver to sleep and wakes the phi driver
     stepPhiUp();
    }
    else if(bottomSensor-topSensor > VOLTAGE_DIFF) {
+    initatedDelaySleepMode = false;
     adjustingPhi(); //Puts the theta driver to sleep and wakes the phi driver
     stepPhiDown();
    }
    else {
+    if(!initatedDelaySleepMode) {
+      initatedDelaySleepMode = true; //All sensors are equal. Wait 30 seconds before going to sleep
+      delaySleepInitiatedTime = millis(); 
+    }
+
+    long currentTime = millis();
+    long elapsedTime = currentTime - delaySleepInitiatedTime;
+
+    if(elapsedTime >= THIRTY_SECONDS_MILLIS) {//If 30 seconds has passed since all sensors are equal
       sleepFor30(); //Intitate 30 minute sleep mode
+      Serial.print("Going to sleep - elapsed time :"); Serial.println(elapsedTime);
+    }
    }
-    
+   
    //delay(500);
   }
 }
@@ -279,14 +295,6 @@ void commandMove(String params) {
   bottomSensor = adc.readADC_SingleEnded(bottom);
   leftSensor = adc.readADC_SingleEnded(left);
   rightSensor = adc.readADC_SingleEnded(right);
-
-  if(DEBUG) {
-    Serial.print("RAW Top: "); Serial.println(topSensor);
-    Serial.print("RAW Bottom: "); Serial.println(bottomSensor);
-    Serial.print("RAW Left: "); Serial.println(leftSensor);
-    Serial.print("RAW Right: "); Serial.println(rightSensor);
-    Serial.println();
-  } 
     
   topSensor = topSensor*(maxVoltage/maxValue);
   bottomSensor = bottomSensor*(maxVoltage/maxValue);
@@ -308,7 +316,7 @@ void commandMove(String params) {
   */
 boolean isAboveThreshold() {
   readSensors();
-  int summation = topSensor + bottomSensor + leftSensor + rightSensor;
+  float summation = topSensor + bottomSensor + leftSensor + rightSensor;
 
   if(summation < VOLTAGE_THRESHOLD)
          count++;
