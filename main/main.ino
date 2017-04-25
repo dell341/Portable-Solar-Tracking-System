@@ -123,13 +123,6 @@ void setup() {
 
 void loop() {
   if(MANUAL) { //Manual mode
-    
-    Serial.print("Min Limit : "); Serial.println(isAtMin());
-    Serial.print("Home : "); Serial.println(isAtHome());
-    Serial.print("Max Limit: "); Serial.println(isAtMax());
-    Serial.println();
-    delay(500);
-    
     if(Serial.available()) {
       //Separates instructions by end-statement characters
       instruction = Serial.readStringUntil(endStatement); 
@@ -187,12 +180,12 @@ void loop() {
     adjustingTheta(); //Puts the phi driver to sleep and wakes the theta driver
     stepThetaDown();
    }
-   else if(topSensor-bottomSensor > VOLTAGE_DIFF) {
+   else if(topSensor-bottomSensor > VOLTAGE_DIFF && !isAtMax()) {
     initatedDelaySleepMode = false;
     adjustingPhi(); //Puts the theta driver to sleep and wakes the phi driver
     stepPhiUp();
    }
-   else if(bottomSensor-topSensor > VOLTAGE_DIFF) {
+   else if(bottomSensor-topSensor > VOLTAGE_DIFF && !isAtMin()) {
     initatedDelaySleepMode = false;
     adjustingPhi(); //Puts the theta driver to sleep and wakes the phi driver
     stepPhiDown();
